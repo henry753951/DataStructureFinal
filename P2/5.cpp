@@ -7,9 +7,9 @@
 #include <sstream>
 #include <string>
 
-#include "heap.h"
+#include "HeapSort.h"
 #include "vector.h"
-
+#include "hashTable.h"
 
 int n = 0;
 std::mutex mtx;
@@ -79,11 +79,11 @@ void processCSV(const std::string& filename, OptionData*& arr) {
 
 int main() {
     std::vector<std::string> filenames = {
-        "OptionsDaily_2017_05_15.csv",
-        "OptionsDaily_2017_05_16.csv",
-        "OptionsDaily_2017_05_17.csv",
-        "OptionsDaily_2017_05_18.csv",
-        "OptionsDaily_2017_05_19.csv",
+        "OptionsDaily_2017_05_15.csv"
+        // "OptionsDaily_2017_05_16.csv",
+        // "OptionsDaily_2017_05_17.csv",
+        // "OptionsDaily_2017_05_18.csv",
+        // "OptionsDaily_2017_05_19.csv",
     };
 
     OptionData* arr = new OptionData[2000000];
@@ -96,19 +96,27 @@ int main() {
             processCSV("data/" + filename, arr);
         });
     }
-    // 等待所有執行緒完成
+
     for (std::thread& thread : threads) {
         thread.join();
     }
     std::cout << "All threads finished\n";
-    // 使用成交價格進行排序
-    // HeapSort<OptionData, CompareByTradePrice>::heapSort(root);
 
-    // // 輸出排序結果 while removeMax
-    // while (root != nullptr) {
-    //     std::cout << root->data.tradePrice << std::endl;
-    //     root = HeapSort<OptionData, CompareByTradePrice>::removeMax(root);
-    // }
+    HeapSort hp = HeapSort();
+    hp.heapSort(arr, n, true);
+    
+    HashTable<std::string,int> ht = HashTable<std::string,int>(n);
+    int count = 0;
 
+    for (int i = 0; i < n; ++i) {
+        std::string key = arr[i].productCode + arr[i].expirationDate + arr[i].callPut + arr[i].tradeTime ;
+        // std::cout << arr[i].tradePrice << std::endl;
+        int index;
+        if(ht.find(key,index)){
+            count++;
+            ht.insert(arr[i].tradeDate, i);
+        }
+    }
+    std::cout << count << std::endl;
     return 0;
 }
