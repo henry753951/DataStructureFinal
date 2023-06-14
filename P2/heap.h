@@ -7,105 +7,59 @@
 #include <vector>
 
 
-template <typename T>
-struct Node {
-    T data;
-    Node* left;
-    Node* right;
+using namespace std;
 
-    explicit Node(T value) : data(value), left(nullptr), right(nullptr) {}
+struct OptionData {
+    std::string tradeDate;
+    std::string productCode;
+    double strikePrice;
+    std::string expirationDate;
+    std::string callPut;
+    std::string tradeTime;
+    double tradePrice;
+    int tradeQuantity;
+    std::string openingPrice;
 };
 
-template <typename T, typename Compare>
 class HeapSort {
-   public:
-    // 建立最大堆
-    static void heapify(Node<T>* root) {
-        if (root == nullptr)
-            return;
+public:
+	HeapSort() {
 
-        Node<T>* largest = root;
-        Node<T>* left = root->left;
-        Node<T>* right = root->right;
+	}
+    void heapify(OptionData arr[], int n, int i, bool ascending) {
+        int largest = i;
+        int l = 2 * i + 1;
+        int r = 2 * i + 2;
 
-        if (left != nullptr && Compare()(left->data, largest->data))
-            largest = left;
+        // If left child is larger than root
+        if (l < n && ((ascending && arr[l].tradePrice > arr[largest].tradePrice) || (!ascending && arr[l].tradePrice < arr[largest].tradePrice)))
+            largest = l;
 
-        if (right != nullptr && Compare()(right->data, largest->data))
-            largest = right;
+        // If right child is larger than largest so far
+        if (r < n && ((ascending && arr[r].tradePrice > arr[largest].tradePrice) || (!ascending && arr[r].tradePrice < arr[largest].tradePrice)))
+            largest = r;
 
-        if (largest != root) {
-            std::swap(root->data, largest->data);
-            heapify(largest);
+        // If largest is not root
+        if (largest != i) {
+            swap(arr[i], arr[largest]);
+
+            // Recursively heapify the affected sub-tree
+            heapify(arr, n, largest, ascending);
         }
     }
+    void heapSort(OptionData arr[], int n, bool ascending = false) {
+        // Build heap (rearrange array)
+        for (int i = n / 2 - 1; i >= 0; i--)
+            heapify(arr, n, i, ascending);
 
-    // 建立節點（連結串列）
-    static Node<T>* createNode(T value) {
-        return new Node<T>(value);
-    }
+        // One by one extract an element from heap
+        for (int i = n - 1; i > 0; i--) {
+            // Move current root to end
+            swap(arr[0], arr[i]);
 
-    // 插入節點並建立最大堆
-    static Node<T>* insertNode(Node<T>* root, T value) {
-        if (root == nullptr)
-            return createNode(value);
-
-        if (Compare()(value, root->data)) {
-            std::swap(value, root->data);
-            root->left = insertNode(root->left, value);
-        } else {
-            root->right = insertNode(root->right, value);
+            // call max heapify on the reduced heap
+            heapify(arr, i, 0, ascending);
         }
-        heapify(root);
-        return root;
-    }
-
-    // 將節點排序並輸出結果
-    static void heapSort(Node<T>* root) {
-        heapify(root);
-    }
-
-    // 移除最大值節點並重建最大堆
-    static Node<T>* removeMax(Node<T>* root) {
-        if (root == nullptr)
-            return nullptr;
-
-        if (root->left == nullptr && root->right == nullptr) {
-            delete root;
-            return nullptr;
-        }
-
-        if (root->left == nullptr) {
-            Node<T>* temp = root->right;
-            delete root;
-            return temp;
-        }
-
-        if (root->right == nullptr) {
-            Node<T>* temp = root->left;
-            delete root;
-            return temp;
-        }
-
-        if (Compare()(root->left->data, root->right->data)) {
-            std::swap(root->data, root->right->data);
-            root->right = removeMax(root->right);
-        } else {
-            std::swap(root->data, root->left->data);
-            root->left = removeMax(root->left);
-        }
-        heapify(root);
-        return root;
-    }
-
-    // 輸出節點
-    static void printNode(Node<T>* root) {
-        if (root == nullptr)
-            return;
-
-        std::cout << root->data << " ";
-        printNode(root->left);
-        printNode(root->right);
     }
 };
 
