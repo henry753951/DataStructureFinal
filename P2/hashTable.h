@@ -36,7 +36,6 @@ class HashTable {
 
     bool find(const KeyType& key, ValueType& value) {
         size_t index = hashFunction(key) % bucketSize;
-        std::cout << "index: " << index << std::endl;
         size_t startIndex = index;
         while (buckets[index].first != KeyType()) {
             if (buckets[index].first == key) {

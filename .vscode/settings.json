@@ -65,6 +65,7 @@
         "cwctype": "cpp",
         "deque": "cpp",
         "memory_resource": "cpp",
-        "string_view": "cpp"
+        "string_view": "cpp",
+        "iomanip": "cpp"
     }
 }
