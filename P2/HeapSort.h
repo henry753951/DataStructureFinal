@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <iostream>
-#include <vector>
 
 
 using namespace std;
@@ -12,7 +11,7 @@ using namespace std;
 struct OptionData {
     std::string tradeDate;
     std::string productCode;
-    double strikePrice;
+    std::string strikePrice;
     std::string expirationDate;
     std::string callPut;
     std::string tradeTime;

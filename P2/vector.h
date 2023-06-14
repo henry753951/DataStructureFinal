@@ -1,130 +1,160 @@
+#include <iostream>
+#include <string>
+
 template <typename T>
 class Vector {
-   public:
-    Vector() : capacity_(DEFAULT_CAPACITY), size_(0) {
-        data_ = new T[capacity_];
-    }
-
-    Vector(std::initializer_list<T> initList) : Vector() {
-        for (const T& element : initList) {
-            push_back(element);
-        }
-    }
-
-    ~Vector() {
-        delete[] data_;
-    }
-
-    void push_back(const T& element) {
-        if (size_ == capacity_) {
-            expandCapacity();
-        }
-        data_[size_++] = element;
-    }
-
-    void pop_back() {
-        if (size_ > 0) {
-            --size_;
-        }
-    }
-
-    T& at(int index) {
-        if (index < 0 || index >= size_) {
-            throw std::out_of_range("Invalid index");
-        }
-        return data_[index];
-    }
-
-    const T& at(int index) const {
-        if (index < 0 || index >= size_) {
-            throw std::out_of_range("Invalid index");
-        }
-        return data_[index];
-    }
-
-    int size() const {
-        return size_;
-    }
-
-    bool empty() const {
-        return size_ == 0;
-    }
-    class Iterator {
-       public:
-        using iterator_category = std::random_access_iterator_tag;
-        using value_type = T;
-        using difference_type = std::ptrdiff_t;
-        using pointer = T*;
-        using reference = T&;
-
-        Iterator(pointer ptr) : ptr_(ptr) {}
-
-        reference operator*() const {
-            return *ptr_;
-        }
-
-        pointer operator->() const {
-            return ptr_;
-        }
-
-        Iterator& operator++() {
-            ++ptr_;
-            return *this;
-        }
-
-        Iterator operator++(int) {
-            Iterator temp = *this;
-            ++(*this);
-            return temp;
-        }
-
-        Iterator& operator--() {
-            --ptr_;
-            return *this;
-        }
-
-        Iterator operator--(int) {
-            Iterator temp = *this;
-            --(*this);
-            return temp;
-        }
-
-        friend bool operator==(const Iterator& lhs, const Iterator& rhs) {
-            return lhs.ptr_ == rhs.ptr_;
-        }
-
-        friend bool operator!=(const Iterator& lhs, const Iterator& rhs) {
-            return !(lhs == rhs);
-        }
-
-       private:
-        pointer ptr_;
-    };
-
-    Iterator begin() {
-        return Iterator(data_);
-    }
-
-    Iterator end() {
-        return Iterator(data_ + size_);
-    }
-
    private:
-    static const int DEFAULT_CAPACITY = 10;
-    static const int GROWTH_FACTOR = 2;
+    T* arr;
+    size_t capacity;
+    size_t size;
 
-    T* data_;
-    int capacity_;
-    int size_;
-
-    void expandCapacity() {
-        int newCapacity = capacity_ * GROWTH_FACTOR;
-        T* newData = new T[newCapacity];
-        for (int i = 0; i < size_; ++i) {
-            newData[i] = data_[i];
+   public:
+    // 建構式
+    Vector() : arr(nullptr), capacity(0), size(0) {}
+    Vector(std::initializer_list<T> initList) : arr(nullptr), capacity(0), size(0) {
+        reserve(initList.size());
+        for (const T& item : initList) {
+            emplace_back(item);
         }
-        delete[] data_;
-        data_ = newData;
-        capacity_ = newCapacity;
+    }
+    // 解構式
+    ~Vector() {
+        delete[] arr;
+    }
+
+    // 迭代器
+    typedef T* iterator;
+    typedef const T* const_iterator;
+
+    iterator begin() { return arr; }
+    iterator end() { return arr + size; }
+    const_iterator begin() const { return arr; }
+    const_iterator end() const { return arr + size; }
+    const_iterator cbegin() const { return arr; }
+    const_iterator cend() const { return arr + size; }
+
+    // emplace_back 函式
+    template <typename... Args>
+    void emplace_back(Args&&... args) {
+        if (size == capacity) {
+            // 擴展陣列容量
+            size_t newCapacity = capacity == 0 ? 1 : capacity * 2;
+            T* newArr = new T[newCapacity];
+            if (arr) {
+                for (size_t i = 0; i < size; ++i) {
+                    newArr[i] = arr[i];
+                }
+                delete[] arr;
+            }
+            arr = newArr;
+            capacity = newCapacity;
+        }
+        arr[size++] = T(std::forward<Args>(args)...);
+    }
+
+    // 取得元素數量
+    size_t getSize() const {
+        return size;
+    }
+
+    // 預留容量
+    void reserve(size_t newCapacity) {
+        if (newCapacity > capacity) {
+            T* newArr = new T[newCapacity];
+            if (arr) {
+                for (size_t i = 0; i < size; ++i) {
+                    newArr[i] = arr[i];
+                }
+                delete[] arr;
+            }
+            arr = newArr;
+            capacity = newCapacity;
+        }
+    }
+    // 清空陣列
+    void clear() {
+        delete[] arr;
+        arr = nullptr;
+        capacity = 0;
+        size = 0;
+    }
+
+    // 存取元素
+    T& operator[](size_t index) {
+        if (index >= size) {
+            throw std::out_of_range("Index out of range");
+        }
+        return arr[index];
+    }
+
+    const T& operator[](size_t index) const {
+        if (index >= size) {
+            throw std::out_of_range("Index out of range");
+        }
+        return arr[index];
+    }
+
+    // 刪除最後一個元素
+    void pop_back() {
+        if (size > 0) {
+            --size;
+        }
+    }
+
+    // 刪除指定位置的元素
+    iterator erase(iterator position) {
+        if (position >= begin() && position < end()) {
+            for (iterator it = position + 1; it != end(); ++it) {
+                *(it - 1) = *it;
+            }
+            --size;
+        }
+        return position;
+    }
+
+    // 插入元素到指定位置
+    iterator insert(iterator position, const T& value) {
+        size_t index = position - begin();
+        emplace_back(value);
+        for (iterator it = end() - 1; it != begin() + index; --it) {
+            *it = *(it - 1);
+        }
+        *(begin() + index) = value;
+        return begin() + index;
+    }
+
+    // 檢查陣列是否為空
+    bool empty() const {
+        return size == 0;
+    }
+
+    // 取得第一個元素
+    T& front() {
+        if (size > 0) {
+            return arr[0];
+        }
+        throw std::out_of_range("Empty array");
+    }
+
+    const T& front() const {
+        if (size > 0) {
+            return arr[0];
+        }
+        throw std::out_of_range("Empty array");
+    }
+
+    // 取得最後一個元素
+    T& back() {
+        if (size > 0) {
+            return arr[size - 1];
+        }
+        throw std::out_of_range("Empty array");
+    }
+
+    const T& back() const {
+        if (size > 0) {
+            return arr[size - 1];
+        }
+        throw std::out_of_range("Empty array");
     }
 };

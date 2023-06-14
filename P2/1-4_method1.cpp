@@ -1,12 +1,11 @@
 #include <mingw.mutex.h>
 #include <mingw.thread.h>
 
-#include <algorithm>
+#include <array>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <iomanip>
 
 #include "HeapSort.h"
 #include "hashTable.h"
@@ -15,25 +14,13 @@
 
 int n = 0;
 std::mutex mtx;
-std::string simplifyDecimalToString(double value) {
-    std::ostringstream oss;
-    oss << std::fixed << std::setprecision(6) << value;
-    std::string result = oss.str();
-    size_t pos = result.find('.');
-    if (pos != std::string::npos) {
-        std::string decimalPart = result.substr(pos + 1);
-        if (decimalPart == "000000") {
-            result = result.substr(0, pos);
-        }
-    }
-    return result;
-}
 
-struct CompareByTradePrice {
-    bool operator()(const OptionData& a, const OptionData& b) {
-        return a.tradePrice > b.tradePrice;
+void removeSpaces(string& s) {
+    size_t pos = 0;
+    while ((pos = s.find(' ', pos)) != string::npos) {
+        s.erase(pos, 1);
     }
-};
+}
 
 void processCSV(const std::string& filename, OptionData*& arr) {
     int nn = 0;
@@ -53,7 +40,7 @@ void processCSV(const std::string& filename, OptionData*& arr) {
     while (std::getline(file, line)) {
         nn++;
         OptionData option;
-        line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
+        removeSpaces(line);
         std::stringstream ss(line);
         std::string value;
         std::getline(ss, value, ',');
@@ -63,7 +50,7 @@ void processCSV(const std::string& filename, OptionData*& arr) {
         option.productCode = value;
 
         std::getline(ss, value, ',');
-        option.strikePrice = std::stod(value);
+        option.strikePrice = value;
 
         std::getline(ss, value, ',');
         option.expirationDate = value;
@@ -97,7 +84,7 @@ int main() {
     Timer totalTimer;  // 計時開始
     totalTimer.start();
 
-    std::vector<std::string> filenames = {
+    Vector<std::string> filenames = {
         "OptionsDaily_2017_05_15.csv",
         "OptionsDaily_2017_05_16.csv",
         "OptionsDaily_2017_05_17.csv",
@@ -105,51 +92,54 @@ int main() {
         "OptionsDaily_2017_05_19.csv",
     };
 
-    OptionData* arr = new OptionData[2000000];
+    OptionData* arr = new OptionData[1500000];
 
     Timer timer;  // 計時開始
     timer.start();
 
     // 使用多執行序讀取並處理 CSV 檔案
-    std::vector<std::thread> threads;
-    for (const std::string& filename : filenames) {
+    std::thread* threads = new std::thread[filenames.getSize()];
+
+    for (size_t i = 0; i < filenames.getSize(); ++i) {
+        const std::string& filename = filenames[i];
         std::cout << "Creating thread for " << filename << "\n";
-        threads.emplace_back([&arr, filename]() {
+        threads[i] = std::thread([&arr, filename]() {
             processCSV("data/" + filename, arr);
         });
     }
 
-    for (std::thread& thread : threads) {
-        thread.join();
+    for (size_t i = 0; i < filenames.getSize(); ++i) {
+        threads[i].join();
     }
 
     timer.stop();  // 計時結束
     std::cout << "===All threads reading finished!===" << std::endl;
     std::cout << " >>> Load data : " << timer.duration<std::chrono::milliseconds>() << " ms\n\n";
-
     // === 排序 ===
     Timer timer1;  // 計時開始
     timer1.start();
-    HeapSort hp = HeapSort();
-    hp.heapSort(arr, n, true);
+    HeapSort hs;
+    hs.heapSort(arr, n);
     timer1.stop();  // 計時結束
     std::cout << " >>> HeapSort : " << timer1.duration<std::chrono::milliseconds>() << " ms\n\n";
     // === === ===
 
-
-
-
     // 1
     std::cout << "=========   1   =========" << std::endl;
+
+    Vector<OptionData> q5;
     // === 去重複 ===
     HashTable<std::string, int> ht = HashTable<std::string, int>(n * 2);
     Timer timer2;  // 計時開始
     timer2.start();
     int count = 0;
     for (int i = 0; i < n; ++i) {
-        std::string key = arr[i].productCode + '_' + simplifyDecimalToString(arr[i].strikePrice) + '_' + arr[i].expirationDate + '_' + arr[i].callPut;
+        std::string key = arr[i].productCode + '_' + arr[i].strikePrice + '_' + arr[i].expirationDate + '_' + arr[i].callPut;
+        // 順便找第五題 TXO_9900_201705_C
+        if (key == "TXO_9900_201705_C") {
+            q5.emplace_back(arr[i]);
+        }
         int index = -1;
-        // std::cout << key << std::endl;
         ht.find(key, index);
         if (index == -1) {
             count++;
@@ -160,10 +150,11 @@ int main() {
     std::cout << " >>> HashTable and de-Duplicate : " << timer2.duration<std::chrono::milliseconds>() << " ms\n\n";
     // === === ===
 
-
     std::cout << "Total : " << n << std::endl;
     std::cout << "non-Duplicate : " << count << std::endl;
-    std::cout << "=========================" << std::endl<< std::endl;
+    std::cout << "=========================" << std::endl
+              << std::endl;
+
     // 2 - 3 - 4
     std::cout << "========= 2,3,4 =========" << std::endl;
     Timer timer3;  // 計時開始
@@ -180,8 +171,25 @@ int main() {
     }
     timer3.stop();  // 計時結束
     std::cout << " >>> Search : " << timer3.duration<std::chrono::milliseconds>() << " ms\n\n";
-    std::cout << "=========================" << std::endl<< std::endl;
+    std::cout << "=========================" << std::endl
+              << std::endl;
 
+    std::cout << "=========== 5 ===========" << std::endl;
+    Timer timer4;  // 計時開始
+    timer4.start();
+
+    for (size_t i = 0; i < 10; ++i) {
+        std::cout << q5[i].tradeDate << " | " << q5[i].tradeTime << " | " << q5[i].tradePrice << std::endl;
+    }
+    std::cout << "..." << std::endl;
+    for (size_t i = q5.getSize()-1; i >= q5.getSize() - 11; i--) {
+        std::cout << q5[i].tradeDate << " | " << q5[i].tradeTime << " | " << q5[i].tradePrice << std::endl;
+    }
+
+    timer4.stop();  // 計時結束
+    std::cout << " >>> 5 : " << timer4.duration<std::chrono::milliseconds>() << " ms\n\n";
+    std::cout << "=========================" << std::endl
+              << std::endl;
 
     totalTimer.stop();  // 計時結束
     std::cout << " >>> Total time : " << totalTimer.duration<std::chrono::milliseconds>() << " ms\n\n";
