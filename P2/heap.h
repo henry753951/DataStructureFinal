@@ -6,6 +6,7 @@
 #include <iostream>
 #include <vector>
 
+
 template <typename T>
 struct Node {
     T data;
@@ -15,7 +16,7 @@ struct Node {
     explicit Node(T value) : data(value), left(nullptr), right(nullptr) {}
 };
 
-template <typename T>
+template <typename T, typename Compare>
 class HeapSort {
    public:
     // 建立最大堆
@@ -27,10 +28,10 @@ class HeapSort {
         Node<T>* left = root->left;
         Node<T>* right = root->right;
 
-        if (left != nullptr && left->data > largest->data)
+        if (left != nullptr && Compare()(left->data, largest->data))
             largest = left;
 
-        if (right != nullptr && right->data > largest->data)
+        if (right != nullptr && Compare()(right->data, largest->data))
             largest = right;
 
         if (largest != root) {
@@ -49,24 +50,19 @@ class HeapSort {
         if (root == nullptr)
             return createNode(value);
 
-        if (value > root->data) {
+        if (Compare()(value, root->data)) {
             std::swap(value, root->data);
             root->left = insertNode(root->left, value);
         } else {
             root->right = insertNode(root->right, value);
         }
-
+        heapify(root);
         return root;
     }
 
     // 將節點排序並輸出結果
     static void heapSort(Node<T>* root) {
         heapify(root);
-
-        while (root != nullptr) {
-            std::cout << root->data << " ";
-            root = removeMax(root);
-        }
     }
 
     // 移除最大值節點並重建最大堆
@@ -76,10 +72,10 @@ class HeapSort {
 
         Node<T>* maxNode = root;
 
-        if (root->left != nullptr && root->left->data > maxNode->data)
+        if (root->left != nullptr && Compare()(root->left->data, maxNode->data))
             maxNode = root->left;
 
-        if (root->right != nullptr && root->right->data > maxNode->data)
+        if (root->right != nullptr && Compare()(root->right->data, maxNode->data))
             maxNode = root->right;
 
         if (maxNode != root) {
@@ -93,5 +89,6 @@ class HeapSort {
         return maxNode;
     }
 };
+
 
 #endif
