@@ -70,23 +70,42 @@ class HeapSort {
         if (root == nullptr)
             return nullptr;
 
-        Node<T>* maxNode = root;
-
-        if (root->left != nullptr && Compare()(root->left->data, maxNode->data))
-            maxNode = root->left;
-
-        if (root->right != nullptr && Compare()(root->right->data, maxNode->data))
-            maxNode = root->right;
-
-        if (maxNode != root) {
-            std::swap(root->data, maxNode->data);
-            maxNode = removeMax(maxNode);
-        } else {
+        if (root->left == nullptr && root->right == nullptr) {
             delete root;
-            root = nullptr;
+            return nullptr;
         }
 
-        return maxNode;
+        if (root->left == nullptr) {
+            Node<T>* temp = root->right;
+            delete root;
+            return temp;
+        }
+
+        if (root->right == nullptr) {
+            Node<T>* temp = root->left;
+            delete root;
+            return temp;
+        }
+
+        if (Compare()(root->left->data, root->right->data)) {
+            std::swap(root->data, root->right->data);
+            root->right = removeMax(root->right);
+        } else {
+            std::swap(root->data, root->left->data);
+            root->left = removeMax(root->left);
+        }
+        heapify(root);
+        return root;
+    }
+
+    // 輸出節點
+    static void printNode(Node<T>* root) {
+        if (root == nullptr)
+            return;
+
+        std::cout << root->data << " ";
+        printNode(root->left);
+        printNode(root->right);
     }
 };
 

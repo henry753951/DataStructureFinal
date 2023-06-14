@@ -9,6 +9,7 @@
 
 #include "heap.h"
 #include "vector.h"
+std::mutex mutex;
 
 struct OptionData {
     std::string tradeDate;
@@ -19,7 +20,7 @@ struct OptionData {
     std::string tradeTime;
     double tradePrice;
     int tradeQuantity;
-    double openingPrice;
+    std::string openingPrice;
 };
 
 struct CompareByTradePrice {
@@ -28,14 +29,8 @@ struct CompareByTradePrice {
     }
 };
 
-bool sortByTradePrice(const OptionData& a, const OptionData& b) {
-    return a.tradePrice < b.tradePrice;
-}
-
 void processCSV(const std::string& filename, Node<OptionData>*& root) {
-    std::mutex mutex;
-
-    std::vector<OptionData> data;
+    int n = 0;
     std::ifstream file(filename);
     if (!file.is_open()) {
         std::cout << "無法開啟檔案：" << filename << std::endl;
@@ -43,15 +38,16 @@ void processCSV(const std::string& filename, Node<OptionData>*& root) {
     }
 
     std::cout << "Reading " << filename << "...\n";
-    
+
     std::string line;
     std::getline(file, line);  // 略過標題列
-
+    std::getline(file, line);  // 略過---
     while (std::getline(file, line)) {
+        n++;
         OptionData option;
+        line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
         std::stringstream ss(line);
         std::string value;
-
         std::getline(ss, value, ',');
         option.tradeDate = value;
 
@@ -77,24 +73,25 @@ void processCSV(const std::string& filename, Node<OptionData>*& root) {
         option.tradeQuantity = std::stoi(value);
 
         std::getline(ss, value, ',');
-        option.openingPrice = std::stod(value);
+        option.openingPrice = value;
 
-        data.push_back(option);
+        // 鎖定互斥鎖以避免多執行序存取 root
+        std::lock_guard<std::mutex> lockGuard(mutex);
+        if (n >= 25412) {
+            std::cout << "Inserting line = " << n << std::endl;
+        }
+        root = HeapSort<OptionData, CompareByTradePrice>::insertNode(root, option);
+
     }
+    std::cout << "Read " << n << " lines\n";
 
     file.close();
-
-    // 鎖定互斥鎖以避免多執行序存取 root
-    std::lock_guard<std::mutex> lockGuard(mutex);
-    for (const OptionData& option : data) {
-        root = HeapSort<OptionData, CompareByTradePrice>::insertNode(root, option);
-    }
 }
 
 int main() {
     std::vector<std::string> filenames = {
         "OptionsDaily_2017_05_15.csv",
-        "OptionsDaily_2017_05_16.csv",
+        // "OptionsDaily_2017_05_16.csv",
     };
 
     Node<OptionData>* root = nullptr;
@@ -102,6 +99,7 @@ int main() {
     // 使用多執行序讀取並處理 CSV 檔案
     std::vector<std::thread> threads;
     for (const std::string& filename : filenames) {
+        std::cout << "Creating thread for " << filename << std::endl;
         threads.emplace_back([&root, filename]() {
             processCSV("data/" + filename, root);
         });
@@ -110,7 +108,7 @@ int main() {
     for (std::thread& thread : threads) {
         thread.join();
     }
-
+    std::cout << "All threads finished\n";
     // 使用成交價格進行排序
     HeapSort<OptionData, CompareByTradePrice>::heapSort(root);
 
