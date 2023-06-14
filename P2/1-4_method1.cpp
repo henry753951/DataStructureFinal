@@ -9,11 +9,30 @@
 
 #include "HeapSort.h"
 #include "hashTable.h"
+#include "tickData.h"
 #include "timer.h"
 #include "vector.h"
 
 int n = 0;
 std::mutex mtx;
+
+struct CompareByTradePrice {
+    bool operator()(const OptionData& data1, const OptionData& data2, bool ascending) const {
+        return ascending ? data1.tradePrice < data2.tradePrice : data1.tradePrice > data2.tradePrice;
+    }
+};
+
+struct CompareByTradeDateTimePrice {
+    bool operator()(const OptionData& data1, const OptionData& data2, bool ascending) const {
+        if (data1.tradeDate == data2.tradeDate) {
+            if (data1.tradeTime == data2.tradeTime) {
+                return ascending ? data1.tradePrice < data2.tradePrice : data1.tradePrice > data2.tradePrice;
+            }
+            return ascending ? data1.tradeTime < data2.tradeTime : data1.tradeTime > data2.tradeTime;
+        }
+        return ascending ? data1.tradeDate < data2.tradeDate : data1.tradeDate > data2.tradeDate;
+    }
+};
 
 void removeSpaces(string& s) {
     size_t pos = 0;
@@ -118,8 +137,8 @@ int main() {
     // === 排序 ===
     Timer timer1;  // 計時開始
     timer1.start();
-    HeapSort hs;
-    hs.heapSort(arr, n);
+    HeapSort<OptionData, CompareByTradePrice> hs;
+    hs.heapSort(arr, n, CompareByTradePrice());
     timer1.stop();  // 計時結束
     std::cout << " >>> HeapSort : " << timer1.duration<std::chrono::milliseconds>() << " ms\n\n";
     // === === ===
@@ -177,14 +196,74 @@ int main() {
     std::cout << "=========== 5 ===========" << std::endl;
     Timer timer4;  // 計時開始
     timer4.start();
-
+    std::cout << "A:" << std::endl;
+    for (size_t i = q5.getSize() - 1; i >= q5.getSize() - 10; i--) {
+        std::cout << q5[i].tradeDate << " | " << q5[i].tradeTime << " | " << q5[i].tradePrice << std::endl;
+    }
+    std::cout << "B:" << std::endl;
     for (size_t i = 0; i < 10; ++i) {
         std::cout << q5[i].tradeDate << " | " << q5[i].tradeTime << " | " << q5[i].tradePrice << std::endl;
     }
-    std::cout << "..." << std::endl;
-    for (size_t i = q5.getSize()-1; i >= q5.getSize() - 11; i--) {
-        std::cout << q5[i].tradeDate << " | " << q5[i].tradeTime << " | " << q5[i].tradePrice << std::endl;
+    std::cout << "C (median) :" << std::endl;
+    if (q5.getSize() % 2 == 0) {
+        std::cout << q5[q5.getSize() / 2 - 1].tradeDate << " | " << q5[q5.getSize() / 2 - 1].tradeTime << " | " << q5[q5.getSize() / 2 - 1].tradePrice << std::endl;
+        std::cout << q5[q5.getSize() / 2].tradeDate << " | " << q5[q5.getSize() / 2].tradeTime << " | " << q5[q5.getSize() / 2].tradePrice << std::endl;
+    } else {
+        std::cout << q5[q5.getSize() / 2].tradeDate << " | " << q5[q5.getSize() / 2].tradeTime << " | " << q5[q5.getSize() / 2].tradePrice << std::endl;
     }
+
+    std::cout << "D :" << std::endl;
+    OptionData* array = q5.toArray();
+    HeapSort<OptionData, CompareByTradeDateTimePrice> hsbytime;
+    hsbytime.heapSort(array, q5.getSize(), CompareByTradeDateTimePrice(), false);
+
+    Vector<TickData> tickData;
+    for (size_t i = 0; i < q5.getSize(); ++i) {
+        TickData td;
+        td.price = array[i].tradePrice;
+        td.timestamp = array[i].tradeDate + " " + array[i].tradeTime;
+        tickData.emplace_back(td);
+    }
+
+
+    Vector<double> returns;  // 用於儲存所有報酬率的向量
+    // 計算所有 tick 的報酬率（除了第一個 tick）
+    for (size_t i = 1; i < tickData.getSize(); ++i) {
+        double currentPrice = tickData[i].price;
+        double previousPrice = tickData[i - 1].price;
+        double tickReturn = calculateTickReturn(currentPrice, previousPrice);
+        returns.emplace_back(tickReturn);
+    }
+
+
+    // 找到最大和最小報酬率及其發生的時間點
+    double minReturn = returns[0];
+    double maxReturn = returns[0];
+    std::size_t minReturnIndex = 0;
+    std::size_t maxReturnIndex = 0;
+
+    for (std::size_t i = 1; i < returns.getSize(); ++i) {
+        if (returns[i] < minReturn) {
+            minReturn = returns[i];
+            minReturnIndex = i;
+        }
+        if (returns[i] > maxReturn) {
+            maxReturn = returns[i];
+            maxReturnIndex = i;
+        }
+    }
+    std::string minReturnTimestamp1 = tickData[minReturnIndex].timestamp;
+    std::string minReturnTimestamp2 = tickData[minReturnIndex + 1].timestamp;  // 因為排除了第一個 tick
+    std::string maxReturnTimestamp1 = tickData[maxReturnIndex].timestamp;
+    std::string maxReturnTimestamp2 = tickData[maxReturnIndex + 1].timestamp;  // 因為排除了第一個 tick
+
+    // 輸出結果
+    std::cout << "Maximum return: " << maxReturn << "% at time \n"
+              << maxReturnTimestamp1 << " " << tickData[maxReturnIndex].price << "\n"
+              << maxReturnTimestamp2 << " " << tickData[maxReturnIndex + 1].price << std::endl;
+    std::cout << "Minimum return: " << minReturn << "% at time \n"
+              << minReturnTimestamp1 << " " << tickData[minReturnIndex].price << "\n"
+              << minReturnTimestamp2 << " " << tickData[minReturnIndex + 1].price << std::endl;
 
     timer4.stop();  // 計時結束
     std::cout << " >>> 5 : " << timer4.duration<std::chrono::milliseconds>() << " ms\n\n";

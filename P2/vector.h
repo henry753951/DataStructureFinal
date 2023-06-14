@@ -57,6 +57,15 @@ class Vector {
         return size;
     }
 
+    // to array
+    T* toArray() {
+        T* newArr = new T[size];
+        for (size_t i = 0; i < size; ++i) {
+            newArr[i] = arr[i];
+        }
+        return newArr;
+    }
+
     // 預留容量
     void reserve(size_t newCapacity) {
         if (newCapacity > capacity) {
